@@ -61,6 +61,7 @@
                 libxkbcommon
                 dbus
                 wayland
+                freetype
               ];
             };
         };
