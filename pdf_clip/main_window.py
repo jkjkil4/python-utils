@@ -111,3 +111,5 @@ class MainWindow(QMainWindow):
                 return
 
         self.output_viewer.pages_view.save(source_file, file_path)
+
+        QMessageBox.information(self, '提示', '导出已完成')
