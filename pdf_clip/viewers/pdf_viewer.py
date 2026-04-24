@@ -72,6 +72,10 @@ class PDFPages(PixmapPages):
     def on_selected(self, selection: QRectF) -> None:
         self.update()
 
+        # 忽略过小的选区
+        if selection.width() < 6 and selection.height() < 6:
+            return
+
         view_p1 = self.qwnd_to_view(selection.topLeft())
         view_p2 = self.qwnd_to_view(selection.bottomRight())
         view_selection = QRectF(view_p1, view_p2)

@@ -30,7 +30,7 @@ class OutputPages(AbstractNavigatableZoomArea):
 
         self._hovering: tuple[int, int, PageElement] | None = None
 
-        self._dragging: PageElement | None = None
+        self._dragging: tuple[int, PageElement] | None = None
         self._drag_start: QPointF | None = None
         self._drag_end: QPointF | None = None
 
@@ -47,6 +47,8 @@ class OutputPages(AbstractNavigatableZoomArea):
         for i in range(self.page_count() - 1, -1, -1):
             if not self._pages[i]:
                 self._pages.pop()
+            else:
+                break
 
     def _get_last_element(self) -> tuple[int, PageElement] | None:  # i indicates pageindex
         for i in range(self.page_count() - 1, -1, -1):
@@ -152,10 +154,11 @@ class OutputPages(AbstractNavigatableZoomArea):
             self._hovering = None
             del self._pages[pageindex][elemindex]
 
-            self._dragging = elem
+            self._dragging = (pageindex, elem)
             self._drag_start = self.qwnd_to_view(event.position())
             self._drag_end = self._drag_start
             self.update()
+
         elif event.button() == Qt.MouseButton.RightButton:
             if self._hovering is None:
                 return
@@ -168,6 +171,9 @@ class OutputPages(AbstractNavigatableZoomArea):
     def mouseMoveEvent(self, event: QMouseEvent, /) -> None:
         if not event.buttons() & Qt.MouseButton.LeftButton:
             self._update_hovering()
+            return
+
+        if self._dragging is None:
             return
 
         self._drag_end = self.qwnd_to_view(event.position())
@@ -191,17 +197,21 @@ class OutputPages(AbstractNavigatableZoomArea):
 
         assert self._drag_start is not None and self._drag_end is not None
 
-        elem = self._dragging
+        orig_page, elem = self._dragging
         self._dragging = None
 
         drag_offset = self._drag_end - self._drag_start
-        page = self.get_page_of_y(self._drag_end.y(), none_in_spacing=False)
+        page = self.get_page_of_y(self._drag_end.y(), none_in_spacing=True, allow_out=True)
         self._drag_start = None
         self._drag_end = None
 
-        elem.origin += drag_offset
-        self._ensure_page(page).append(elem)
+        if page is None:
+            self._pages[orig_page].append(elem)
+        else:
+            elem.origin += drag_offset
+            self._ensure_page(page).append(elem)
 
+        self._clean_empty_page()
         self._update_hovering()
         self.update()
 
@@ -245,19 +255,30 @@ class OutputPages(AbstractNavigatableZoomArea):
         return self.unit * index + PIXMAP_SIZE[1]
 
     @overload
-    def get_page_of_y(self, view_y: float, *, none_in_spacing: Literal[True]) -> int | None: ...
+    def get_page_of_y(
+        self, view_y: float, *, none_in_spacing: Literal[True], allow_out: bool = False
+    ) -> int | None: ...
     @overload
-    def get_page_of_y(self, view_y: float, *, none_in_spacing: Literal[False]) -> int: ...
+    def get_page_of_y(
+        self, view_y: float, *, none_in_spacing: Literal[False], allow_out: bool = False
+    ) -> int: ...
 
     def get_page_of_y(
-        self, view_y: float, *, none_in_spacing: Literal[True, False] = True
+        self,
+        view_y: float,
+        *,
+        none_in_spacing: Literal[True, False],
+        allow_out: bool = False,
     ) -> int | None:
         div = math.floor(view_y // self.unit)
         mod = view_y % self.unit
         if none_in_spacing:
-            if mod > PIXMAP_SIZE[1] or div < 0 or div >= self.page_count():
+            if mod > PIXMAP_SIZE[1] or div < 0 or (not allow_out and div >= self.page_count()):
                 return None
-        return clip(div, 0, self.page_count() - 1)
+        if allow_out:
+            return max(0, div)
+        else:
+            return clip(div, 0, self.page_count() - 1)
 
     # endregion
 
@@ -306,12 +327,14 @@ class OutputPages(AbstractNavigatableZoomArea):
             self.draw_elem_border(painter, elem.origin, elem.pixmap.size())
 
         if self._dragging is not None:
+            _, elem = self._dragging
             assert self._drag_start is not None and self._drag_end is not None
-            drag_offset = self._drag_end - self._drag_start
-            origin = self._dragging.origin + drag_offset
 
-            self.draw_view_pixmap(painter, origin, self._dragging.pixmap)
-            self.draw_elem_border(painter, origin, self._dragging.pixmap.size())
+            drag_offset = self._drag_end - self._drag_start
+            origin = elem.origin + drag_offset
+
+            self.draw_view_pixmap(painter, origin, elem.pixmap)
+            self.draw_elem_border(painter, origin, elem.pixmap.size())
 
     def draw_view_pixmap(self, painter: QPainter, origin: QPointF, pixmap: QPixmap) -> None:
         pos = self.qview_to_wnd(origin)
