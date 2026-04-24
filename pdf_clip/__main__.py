@@ -1,6 +1,10 @@
+import sys
+
+sys.path.append('.')
+
 from PySide6.QtWidgets import QApplication
 
-from main_window import MainWindow
+from pdf_clip.main_window import MainWindow
 
 
 def main():

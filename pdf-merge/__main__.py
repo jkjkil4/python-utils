@@ -1,5 +1,6 @@
 
 import sys
+
 import pymupdf as pdf
 from PySide6.QtWidgets import QApplication, QFileDialog
 
