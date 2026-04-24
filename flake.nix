@@ -28,8 +28,8 @@
               pkgs.uv 
               python
               # alias
-              (pkgs.writeShellScriptBin "janim" ''
-                exec uv run janim "$@"
+              (pkgs.writeShellScriptBin "pdf-clip" ''
+                exec uv run pdf_clip "$@"
               '')
             ] ++ extraPackages;
 
