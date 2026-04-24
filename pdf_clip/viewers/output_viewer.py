@@ -11,7 +11,7 @@ from typing import Literal, overload
 
 import numpy as np
 import pymupdf as pdf
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPixmap
 from PySide6.QtWidgets import QWidget
 
@@ -303,11 +303,7 @@ class OutputPages(AbstractNavigatableZoomArea):
 
         if self._hovering is not None:
             elem = self._hovering[-1]
-            pos = self.qview_to_wnd(elem.origin)
-            size = elem.pixmap.size() * self._factor
-            painter.setPen(QColor(128, 200, 255))
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawRect(QRectF(pos, size))
+            self.draw_elem_border(painter, elem.origin, elem.pixmap.size())
 
         if self._dragging is not None:
             assert self._drag_start is not None and self._drag_end is not None
@@ -315,11 +311,19 @@ class OutputPages(AbstractNavigatableZoomArea):
             origin = self._dragging.origin + drag_offset
 
             self.draw_view_pixmap(painter, origin, self._dragging.pixmap)
+            self.draw_elem_border(painter, origin, self._dragging.pixmap.size())
 
     def draw_view_pixmap(self, painter: QPainter, origin: QPointF, pixmap: QPixmap) -> None:
         pos = self.qview_to_wnd(origin)
         size = pixmap.size() * self._factor
         painter.drawPixmap(QRectF(pos, size).toRect(), pixmap)
+
+    def draw_elem_border(self, painter: QPainter, origin: QPointF, size: QSize) -> None:
+        pos = self.qview_to_wnd(origin)
+        wnd_size = size * self._factor
+        painter.setPen(QColor(128, 200, 255))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRect(QRectF(pos, wnd_size))
 
 
 @dataclass
